@@ -945,7 +945,7 @@ function SidebarThemeToggle() {
 	const { appearance, onAppearanceChange } = useAppearance();
 	const isDark = appearance.mode === "dark";
 	const toggleTheme = useCallback(async () => {
-		const nextMode = isDark ? "light" : "dark";
+		const nextMode: "light" | "dark" = isDark ? "light" : "dark";
 		try {
 			const res = await fetch("/api/settings");
 			const body = (await res.json()) as { settings?: { appearance?: Record<string, unknown> } };
