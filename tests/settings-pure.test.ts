@@ -71,7 +71,7 @@ describe("derivedPalette — the dark curve keeps today's relationships", () => 
 	it("light mode curve steps surfaces darker from a custom light background", () => {
 		const p = derivedPalette("#edeaea", "light");
 		assert.equal(p["--background"], "#edeaea");
-		assert.equal(p["--card"], "#dddada"); // -16 per channel
+		assert.equal(p["--card"], "#dcd9d9"); // -17 per channel
 		assert.equal(p["--primary-foreground"], "#edeaea");
 	});
 });
