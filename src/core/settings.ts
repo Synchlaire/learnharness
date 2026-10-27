@@ -288,6 +288,8 @@ export interface AppearanceSettings {
 	/** Reading font size in px (12–24, default 16). Headings render as
 	 *  multiples of this, so one knob scales the document coherently. */
 	proseFontSize?: number;
+	/** Reading column max-width in ch (40–140, null = full width). */
+	proseMaxWidth?: number | null;
 	/** Session names in CMU Serif (default true — today's look). */
 	sessionNameSerif?: boolean;
 	mdRendering?: MdRenderingSettings;
@@ -383,6 +385,7 @@ export interface FactorySettings {
 		background: string | null;
 		fontFamily: string | null;
 		proseFontSize: number;
+		proseMaxWidth: number | null;
 		sessionNameSerif: boolean;
 		mdRendering: {
 			headingWeight: number;
@@ -402,6 +405,7 @@ export const FACTORY_SETTINGS: FactorySettings = {
 		background: null, // the dark default (#141414) lives in the mode's derivation curve
 		fontFamily: null, // Source Sans 3
 		proseFontSize: 16,
+		proseMaxWidth: null,
 		sessionNameSerif: true,
 		mdRendering: { headingWeight: 900, boldColor: null, italicColor: null },
 	},
@@ -418,6 +422,8 @@ export const EXTRACTION_CHUNK_TOKENS_FLOOR = 500;
 
 const PROSE_FONT_MIN = 12;
 const PROSE_FONT_MAX = 24;
+const PROSE_WIDTH_MIN = 40;
+const PROSE_WIDTH_MAX = 140;
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
@@ -552,6 +558,11 @@ function sanitizeAppearance(raw: Record<string, unknown>): AppearanceSettings {
 	}
 	if (typeof raw.proseFontSize === "number" && Number.isFinite(raw.proseFontSize)) {
 		out.proseFontSize = clamp(Math.round(raw.proseFontSize), PROSE_FONT_MIN, PROSE_FONT_MAX);
+	}
+	if (raw.proseMaxWidth === null) {
+		out.proseMaxWidth = null;
+	} else if (typeof raw.proseMaxWidth === "number" && Number.isFinite(raw.proseMaxWidth)) {
+		out.proseMaxWidth = clamp(Math.round(raw.proseMaxWidth), PROSE_WIDTH_MIN, PROSE_WIDTH_MAX);
 	}
 	const sessionNameSerif = boolOrDrop(raw.sessionNameSerif);
 	if (sessionNameSerif !== undefined) out.sessionNameSerif = sessionNameSerif;

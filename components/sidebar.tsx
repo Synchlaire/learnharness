@@ -6,12 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { DumbbellIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon, SunIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
 import { BrailleSpinner } from "@/components/braille-spinner";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
+import { useAppearance } from "@/components/settings/appearance";
 import { SettingsDialogProvider, useSettingsDialog } from "@/components/settings/settings-dialog.tsx";
 import { Hint } from "@/components/ui/hint";
 import { Button } from "@/components/ui/button";
@@ -846,7 +847,7 @@ function SessionsSidebar() {
 					{/* Settings entry (settings-app wave): same row language as
 					    New session — quiet, bottom-pinned, opens the centered
 					    dialog (also mod+, in the keyboard registry). */}
-					<div className="px-3 pb-3 pt-1">
+					<div className="flex items-center justify-between px-3 pb-3 pt-1">
 						<Hint label="Settings" action="open-settings" side="right">
 							<button
 								type="button"
@@ -858,6 +859,7 @@ function SessionsSidebar() {
 								Settings
 							</button>
 						</Hint>
+						<SidebarThemeToggle />
 					</div>
 				</div>
 
@@ -936,6 +938,42 @@ function SessionsSidebar() {
 					onDeleted={onDeleted}
 				/>
 			</aside>
+	);
+}
+
+function SidebarThemeToggle() {
+	const { appearance, onAppearanceChange } = useAppearance();
+	const isDark = appearance.mode === "dark";
+	const toggleTheme = useCallback(async () => {
+		const nextMode = isDark ? "light" : "dark";
+		try {
+			const res = await fetch("/api/settings");
+			const body = (await res.json()) as { settings?: { appearance?: Record<string, unknown> } };
+			const current = body.settings?.appearance ?? {};
+			const next = { ...current, mode: nextMode };
+			onAppearanceChange(next);
+			await fetch("/api/settings/appearance", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next),
+			});
+			notifySettingsSaved("appearance");
+		} catch {
+			onAppearanceChange({ mode: nextMode });
+		}
+	}, [isDark, onAppearanceChange]);
+	return (
+		<Hint label={isDark ? "Switch to light mode" : "Switch to dark mode"} side="top">
+			<button
+				type="button"
+				onClick={() => void toggleTheme()}
+				aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+				data-testid="theme-toggle"
+				className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+			>
+				{isDark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+			</button>
+		</Hint>
 	);
 }
 

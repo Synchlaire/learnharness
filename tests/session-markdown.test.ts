@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { LhMessage } from "../src/core/native-messages.ts";
 import { messageMarkdown, sessionMarkdown } from "../src/core/session-markdown.ts";
+import { graphToObsidianMarkdown } from "../src/core/graph-markdown.ts";
 import { messageViewLines } from "../src/core/coverage.ts";
 import { coverageSlots } from "../src/core/coverage.ts";
 
@@ -222,5 +223,70 @@ describe("sessionMarkdown", () => {
 			const hasMarkdown = messageMarkdown(message, message.id) !== null;
 			assert.equal(hasLines, isTeacher && hasMarkdown, `view lines follow teacher prose for ${message.id}`);
 		}
+	});
+
+	it("renders Highlights & Notes section when highlights are provided", () => {
+		const md = sessionMarkdown([teacher("a1", "Bayes theorem updates prior beliefs.")], {
+			title: "Bayes",
+			anchors: false,
+			highlights: [
+				{
+					id: "hl_1",
+					quote: "Bayes theorem updates prior beliefs.",
+					note: "Important core idea",
+					messageId: "a1",
+					createdAt: "2026-10-27T00:00:00.000Z",
+				},
+			],
+		});
+		assert.ok(md.includes("## Highlights & Notes"));
+		assert.ok(md.includes("> Bayes theorem updates prior beliefs."));
+		assert.ok(md.includes("**Note:** Important core idea"));
+	});
+});
+
+describe("graphToObsidianMarkdown", () => {
+	it("exports propositions and reasoning chains with [[Wikilinks]] and YAML frontmatter", () => {
+		const md = graphToObsidianMarkdown(
+			{
+				propositions: [
+					{
+						id: "n_1",
+						name: "Prior probability",
+						statement: "A prior represents initial belief before observing new evidence.",
+						aliases: ["Prior belief"],
+						createdAt: "2026-10-27T00:00:00.000Z",
+						provenance: [{ chatId: "c1", messageId: "m1" }],
+					},
+					{
+						id: "n_2",
+						name: "Posterior update",
+						statement: "Posterior probability is proportional to likelihood times prior.",
+						aliases: [],
+						createdAt: "2026-10-27T00:00:00.000Z",
+						provenance: [{ chatId: "c1", messageId: "m2" }],
+					},
+				],
+				chains: [
+					{
+						id: "arg_1",
+						premises: ["n_1"],
+						conclusion: "n_2",
+						provenance: [{ chatId: "c1", messageId: "m2" }],
+						createdAt: "2026-10-27T00:00:00.000Z",
+					},
+				],
+				sessions: { c1: "Intro to Bayes" },
+				fileSources: {},
+				nodeSessions: { n_1: ["c1"], n_2: ["c1"] },
+				clusters: [],
+			},
+			"2026-10-27T00:00:00.000Z",
+		);
+		assert.ok(md.startsWith("---\ntype: knowledge-graph\n"));
+		assert.ok(md.includes("### Prior probability"));
+		assert.ok(md.includes("- **Entails:** [[Posterior update]]"));
+		assert.ok(md.includes("- **Entailed by:** [[Prior probability]]"));
+		assert.ok(md.includes("- [[Prior probability]] → [[Posterior update]]"));
 	});
 });

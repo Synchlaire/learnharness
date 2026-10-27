@@ -41,6 +41,7 @@ import { MERMAID_FONT_SIZE, renderMermaid } from "@/components/mermaid-render";
 import { MermaidError } from "@/components/mermaid-error";
 import { blurAfterPointerClick } from "@/components/focus-hygiene";
 import { chartSize, useSessionMermaid } from "@/components/session-overlay";
+import { useAppearance } from "@/components/settings/appearance";
 import { Hint } from "@/components/ui/hint";
 
 // ─── The one affordance: the hover-reveal corner copy ────────────────────────
@@ -143,6 +144,7 @@ function MermaidInline({ chart }: { chart: string }) {
 	const [error, setError] = useState<string | null>(null);
 	const [attempt, setAttempt] = useState(0);
 	const overlay = useSessionMermaid();
+	const { appearance } = useAppearance();
 	const incomplete = useIsCodeFenceIncomplete();
 	// The font-parity cap (owner rule, 2026-09-19): the house CSS
 	// (`max-width: 100% !important`) overrides mermaid's own natural-size cap,
@@ -166,7 +168,7 @@ function MermaidInline({ chart }: { chart: string }) {
 		let cancelled = false;
 		setSvg(null);
 		setError(null);
-		renderMermaid(chart)
+		renderMermaid(chart, appearance.mode)
 			.then((s) => {
 				if (!cancelled) setSvg(s);
 			})
@@ -176,7 +178,7 @@ function MermaidInline({ chart }: { chart: string }) {
 		return () => {
 			cancelled = true;
 		};
-	}, [chart, attempt, incomplete]);
+	}, [chart, attempt, incomplete, appearance.mode]);
 
 	if (incomplete || (svg === null && error === null)) {
 		return (

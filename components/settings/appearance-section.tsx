@@ -186,19 +186,25 @@ export function AppearanceSection({
 
 	return (
 		<>
-			<SettingsRow label="Mode" hint="Coming soon" testid="row-mode" dimmed>
-				<ThinSelect value="dark" ariaLabel="mode" onChange={() => {}} testid="select-mode" disabled>
+			<SettingsRow label="Mode" hint={resolved.mode === "light" ? "Little Wing (Warm Light)" : "Dark"} testid="row-mode">
+				<ThinSelect
+					value={resolved.mode}
+					ariaLabel="mode"
+					onChange={(v) => onSectionChange({ ...appearance, mode: v === "light" ? "light" : "dark" })}
+					testid="select-mode"
+				>
 					<option value="dark">Dark</option>
+					<option value="light">Light (Little Wing)</option>
 				</ThinSelect>
 			</SettingsRow>
 			<SettingsRow
 				label="Background"
-				hint={`Empty = ${resolved.background ?? "#141414"}`}
+				hint={`Empty = ${resolved.background ?? (resolved.mode === "light" ? "#edeaea" : "#141414")}`}
 				testid="row-background"
 			>
 				<CommitInput
 					value={appearance?.background ?? ""}
-					placeholder="#141414"
+					placeholder={resolved.mode === "light" ? "#edeaea" : "#141414"}
 					ariaLabel="background hex"
 					testid="input-background"
 					onCommit={(v) => onSectionChange({ ...appearance, background: v === "" ? null : v })}
@@ -287,6 +293,56 @@ export function AppearanceSection({
 						onSectionChange({ ...appearance, proseFontSize: Math.min(24, Math.max(12, Math.round(n))) });
 					}}
 				/>
+			</SettingsRow>
+			<SettingsRow
+				label="Reading column width"
+				hint={resolved.proseMaxWidth ? `${resolved.proseMaxWidth}ch` : "Full width"}
+				testid="row-prose-width"
+			>
+				<div className="flex items-center gap-1.5">
+					<div className="flex items-center gap-0.5 rounded-sm border border-border/60 bg-background p-0.5">
+						{(
+							[
+								{ label: "55ch", val: 55 },
+								{ label: "68ch", val: 68 },
+								{ label: "85ch", val: 85 },
+								{ label: "Full", val: null },
+							] as const
+						).map((preset) => {
+							const active = (resolved.proseMaxWidth ?? null) === preset.val;
+							return (
+								<button
+									key={preset.label}
+									type="button"
+									data-testid={`prose-width-preset-${preset.label.toLowerCase()}`}
+									onClick={() => onSectionChange({ ...appearance, proseMaxWidth: preset.val })}
+									className={
+										"rounded-xs px-1.5 py-0.5 font-ui text-[11px] transition-colors " +
+										(active ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")
+									}
+								>
+									{preset.label}
+								</button>
+							);
+						})}
+					</div>
+					<CommitInput
+						type="number"
+						value={appearance?.proseMaxWidth != null ? String(appearance.proseMaxWidth) : ""}
+						placeholder="full"
+						ariaLabel="reading column width in ch"
+						testid="input-prose-width"
+						onCommit={(v) => {
+							if (v === "") {
+								onSectionChange({ ...appearance, proseMaxWidth: null });
+								return;
+							}
+							const n = Number(v);
+							if (!Number.isFinite(n)) return;
+							onSectionChange({ ...appearance, proseMaxWidth: Math.min(140, Math.max(40, Math.round(n))) });
+						}}
+					/>
+				</div>
 			</SettingsRow>
 			<SettingsRow label="Session names in serif" testid="row-session-serif">
 				<Toggle

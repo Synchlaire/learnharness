@@ -47,10 +47,11 @@ import { PlanBlock, PlanPopup, latestTree } from "@/components/plan-block";
 import { PlanMarginalia, planExists } from "@/components/plan-window";
 import { MermaidOverlay, SessionMermaidContext } from "@/components/session-overlay";
 import { AbortTurnDialog, type AbortMode } from "@/components/abort-turn-dialog";
-import { ArrowRightIcon, DumbbellIcon, WaypointsIcon } from "lucide-react";
-import type { PlanBlockData } from "@/src/core";
+import { ArrowRightIcon, BookmarkIcon, DumbbellIcon, WaypointsIcon } from "lucide-react";
+import type { PlanBlockData, SessionHighlight } from "@/src/core";
 import { QuestionDock } from "@/components/question-dock";
 import { SessionFind } from "@/components/session-find";
+import { SessionHighlights } from "@/components/session-highlights";
 import { SessionMessageNavigation } from "@/components/session-navigation";
 import { PracticeDock } from "@/components/practice-dock";
 import { ThinkingCard, type PracticeThinkingData } from "@/components/practice-cards";
@@ -87,7 +88,7 @@ import { useSettingsSaved } from "@/components/settings-signal";
  * deliberately narrower (~46rem centered) per the reference. Same ELEMENT,
  * same place — width polish only.
  */
-const COLUMN = "mx-auto w-full max-w-none px-6";
+const COLUMN = "mx-auto w-full max-w-[var(--lh-prose-max-width,none)] px-6";
 const DOCK = "mx-auto w-full max-w-[46rem] px-4";
 // The DOCK container's fixed width (46rem) and the plan marginalia's
 // geometry (owner, plan-placement round): the bare diagram sits in the
@@ -197,6 +198,7 @@ export function Chat({
 	chatId,
 	title,
 	initialMessages,
+	initialHighlights,
 	initialError,
 	initialPrompt,
 	initiallyInFlight,
@@ -207,6 +209,7 @@ export function Chat({
 	chatId: string;
 	title: string;
 	initialMessages: LhMessage[];
+	initialHighlights?: SessionHighlight[];
 	/** Memory-only settlement notice supplied on reopening. */
 	initialError?: string;
 	/** The session kind (practice sessions, owner 2026-10-04): practice
@@ -855,6 +858,60 @@ export function Chat({
 	// fetches the record. No turns yet → the bar renders "—" everywhere.
 	const [turns, setTurns] = useState<TurnUsage[]>([]);
 	const [pricing, setPricing] = useState<SessionPricing | undefined>();
+	const [highlights, setHighlights] = useState<SessionHighlight[]>(initialHighlights ?? []);
+	const [highlightsOpen, setHighlightsOpen] = useState(false);
+
+	const persistHighlights = useCallback(
+		async (next: SessionHighlight[]) => {
+			setHighlights(next);
+			try {
+				await fetch(`/api/chats/${encodeURIComponent(chatId)}/highlights`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ highlights: next }),
+				});
+			} catch (err) {
+				console.error("Failed to save highlights:", err);
+			}
+		},
+		[chatId],
+	);
+
+	const handleAddHighlight = useCallback(
+		(quote: string, note?: string, messageId?: string) => {
+			const item: SessionHighlight = {
+				id: `hl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+				quote,
+				...(note ? { note } : {}),
+				...(messageId ? { messageId } : {}),
+				createdAt: new Date().toISOString(),
+			};
+			void persistHighlights([...highlights, item]);
+		},
+		[highlights, persistHighlights],
+	);
+
+	const handleUpdateHighlight = useCallback(
+		(id: string, note: string | undefined) => {
+			const next = highlights.map((h) => {
+				if (h.id !== id) return h;
+				const copy: SessionHighlight = { id: h.id, quote: h.quote, createdAt: h.createdAt };
+				if (h.messageId) copy.messageId = h.messageId;
+				if (note) copy.note = note;
+				return copy;
+			});
+			void persistHighlights(next);
+		},
+		[highlights, persistHighlights],
+	);
+
+	const handleDeleteHighlight = useCallback(
+		(id: string) => {
+			void persistHighlights(highlights.filter((h) => h.id !== id));
+		},
+		[highlights, persistHighlights],
+	);
+
 	// The per-chat model control state (model-picker writes via PUT; the
 	// record is the source of truth, lifted here so the stats bar re-renders).
 	// The dock's reserved tail height (DockOverlay reports it; the spacer at
@@ -868,8 +925,13 @@ export function Chat({
 		try {
 			const res = await fetch(`/api/chats/${chatId}`);
 			if (!res.ok) return;
-			const record = (await res.json()) as { turns?: TurnUsage[]; pricing?: SessionPricing };
+			const record = (await res.json()) as {
+				turns?: TurnUsage[];
+				pricing?: SessionPricing;
+				highlights?: SessionHighlight[];
+			};
 			if (Array.isArray(record.turns)) setTurns(record.turns);
+			if (Array.isArray(record.highlights)) setHighlights(record.highlights);
 			setPricing(record.pricing);
 		} catch {
 			// transient blip: stats stay on the last known figures
@@ -1290,6 +1352,27 @@ export function Chat({
 						</button>
 </Hint>
 					)}
+					<Hint label="Session notes & highlights" side="bottom">
+						<button
+							type="button"
+							data-testid="highlights-chip"
+							onClick={(e) => {
+								blurAfterPointerClick(e);
+								setHighlightsOpen((v) => !v);
+							}}
+							className={`lh-no-drag flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wide transition-colors ${
+								highlightsOpen
+									? "border-border bg-accent text-foreground"
+									: "border-border/80 text-muted-foreground hover:border-border hover:text-foreground"
+							}`}
+						>
+							<BookmarkIcon className="size-3.5 text-primary" aria-hidden />
+							<span>Notes</span>
+							{highlights.length > 0 && (
+								<span className="tabular-nums text-foreground">{highlights.length}</span>
+							)}
+						</button>
+					</Hint>
 					{/* The extraction ring (owner-locked redesign, 2026-09-24): fills
 					    with uncovered vs the chunk threshold, pulses while a run is in
 					    flight, vanishes when the graph is off. Click → the exact
@@ -1675,6 +1758,17 @@ export function Chat({
 					}}
 				/>
 				</Conversation>
+				<SessionHighlights
+					scopeRef={sessionFindScopeRef}
+					scrollContextRef={scrollContextRef}
+					highlights={highlights}
+					onAddHighlight={handleAddHighlight}
+					onUpdateHighlight={handleUpdateHighlight}
+					onDeleteHighlight={handleDeleteHighlight}
+					open={highlightsOpen}
+					onClose={() => setHighlightsOpen(false)}
+					onOpen={() => setHighlightsOpen(true)}
+				/>
 
 				{/* The session-scoped focuses (chrome-melt wave, 2026-09-19): mounted
 				    INSIDE the session area — absolute inset-0 siblings of the scroller,

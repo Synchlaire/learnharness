@@ -27,6 +27,14 @@ import type { EmissionStats } from "./graph.ts";
  *  practice agent, its two tools, no extraction, no graph writes. */
 export type ChatKind = "teach" | "practice";
 
+export interface SessionHighlight {
+	id: string;
+	quote: string;
+	note?: string;
+	messageId?: string;
+	createdAt: string;
+}
+
 export interface ChatRecord {
 	id: string;
 	title: string;
@@ -37,6 +45,8 @@ export interface ChatRecord {
 	kind?: ChatKind;
 	/** The session's plan tree (vision §2) — written by plan tools via saveTree. */
 	tree?: PlanTree;
+	/** User-saved text highlights and margin notes in this session. */
+	highlights?: SessionHighlight[];
 	/** Append-only usage log (observability, 2026-09): one entry per model
 	 * turn. DELIBERATELY a parallel log, not per-message metadata — the client
 	 * re-POSTs its message list every turn and its copies never carry

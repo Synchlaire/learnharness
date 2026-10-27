@@ -21,6 +21,7 @@
  */
 
 import type { LhMessage } from "./native-messages.ts";
+import type { SessionHighlight } from "./contracts/chat.ts";
 import {
 	failedOutputCallIds,
 	PRACTICE_CONCLUDE_TOOL,
@@ -192,7 +193,7 @@ export function messageMarkdown(
  */
 export function sessionMarkdown(
 	messages: ReadonlyArray<LhMessage>,
-	opts: { title?: string; anchors?: boolean } = {},
+	opts: { title?: string; anchors?: boolean; highlights?: ReadonlyArray<SessionHighlight> } = {},
 ): string {
 	const blocks: string[] = [];
 	if (opts.title !== undefined && opts.title.length > 0) blocks.push(`# ${opts.title}`);
@@ -200,6 +201,18 @@ export function sessionMarkdown(
 	for (const message of messages) {
 		const block = messageMarkdown(message, (message as { id?: string }).id ?? "", opts.anchors ?? true, ctx);
 		if (block !== null) blocks.push(block);
+	}
+	if (opts.highlights && opts.highlights.length > 0) {
+		const hlLines = ["## Highlights & Notes"];
+		for (const h of opts.highlights) {
+			const quoted = h.quote.trim().replace(/\n/g, "\n> ");
+			let entry = `> ${quoted}`;
+			if (h.note && h.note.trim().length > 0) {
+				entry += `\n\n**Note:** ${h.note.trim()}`;
+			}
+			hlLines.push(entry);
+		}
+		blocks.push(hlLines.join("\n\n"));
 	}
 	return blocks.join("\n\n");
 }

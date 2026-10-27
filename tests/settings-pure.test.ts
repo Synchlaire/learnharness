@@ -67,6 +67,13 @@ describe("derivedPalette — the dark curve keeps today's relationships", () => 
 	it("3-digit hex expands", () => {
 		assert.equal(derivedPalette("#abc")["--card"], "#b2c3d4"); // aa bb cc each +8
 	});
+
+	it("light mode curve steps surfaces darker from a custom light background", () => {
+		const p = derivedPalette("#edeaea", "light");
+		assert.equal(p["--background"], "#edeaea");
+		assert.equal(p["--card"], "#dddada"); // -16 per channel
+		assert.equal(p["--primary-foreground"], "#edeaea");
+	});
 });
 
 describe("appearanceVars — the mapping the provider applies", () => {
@@ -104,6 +111,11 @@ describe("appearanceVars — the mapping the provider applies", () => {
 		const vars = appearanceVars(resolveAppearance({ sessionNameSerif: false }));
 		assert.equal(vars["--font-title"], "var(--font-prose)");
 		assert.equal(Object.keys(vars).length, 3, "prose-size, heading-weight, font-title only");
+	});
+
+	it("proseMaxWidth sets --lh-prose-max-width in ch when set", () => {
+		const vars = appearanceVars(resolveAppearance({ proseMaxWidth: 68 }));
+		assert.equal(vars["--lh-prose-max-width"], "68ch");
 	});
 });
 

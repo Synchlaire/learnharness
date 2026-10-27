@@ -28,7 +28,8 @@ export default async function ChatPage({
 			// Wave D: the record IS native agent history — the client view is
 				// derived app-side (core/view.ts projectView; GET serves the same
 				// native messages).
-				initialMessages={chat.messages}
+			initialMessages={chat.messages}
+			initialHighlights={chat.highlights}
 			initialError={turnFailure(chat.id)}
 			initialConfigured={slotsConfigured(record?.models)}
 			initialPrompt={prompt}

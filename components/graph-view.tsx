@@ -66,8 +66,11 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { NotesImportErrors, useNotesImport } from "@/components/notes-import.tsx";
 import Link from "next/link";
-import { FileTextIcon, ListTreeIcon, Loader2Icon, SearchIcon, SettingsIcon, UploadIcon, WaypointsIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DownloadIcon, DumbbellIcon, FileTextIcon, ListTreeIcon, Loader2Icon, SearchIcon, SettingsIcon, UploadIcon, WaypointsIcon } from "lucide-react";
 import { incrementalLayout, propositionSessionHref, type GraphCostSummary, type GraphNode, type GraphSnapshot } from "@/src/core";
+import { useAppearance } from "@/components/settings/appearance";
+import { startDraftSession } from "@/components/new-session";
 import { planCostLabel } from "@/components/usage-format";
 import { GraphCanvasRenderer, type GraphRenderSettings } from "./graph-canvas.ts";
 import { usePopoverDismiss } from "@/components/popover-dismiss";
@@ -913,7 +916,7 @@ export function GraphChromeRow({
 			)}
 			{/* Import notes — its own container (36px, header band); ALWAYS
 			    rendered (the empty-graph ruling above — the entry point). */}
-			<div className="shrink-0 rounded-xl border bg-card/85 px-1 py-[3px] shadow-lg backdrop-blur">
+			<div className="flex shrink-0 items-center gap-0.5 rounded-xl border bg-card/85 px-1 py-[3px] shadow-lg backdrop-blur">
 				<input
 					ref={fileInputRef}
 					type="file"
@@ -943,6 +946,19 @@ export function GraphChromeRow({
 						{importing ? "Importing…" : "Import notes…"}
 					</button>
 				</Hint>
+				{!isEmpty && (
+					<Hint label="Export knowledge graph as Markdown / Obsidian" side="bottom">
+						<a
+							href="/api/graph/export"
+							download="knowledge-graph.md"
+							data-testid="export-graph-md"
+							className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+						>
+							<DownloadIcon className="size-3" />
+							Export
+						</a>
+					</Hint>
+				)}
 			</div>
 			{!isEmpty && (
 				// Rendering settings — own component; the gear toggles it. The
@@ -974,6 +990,9 @@ export function GraphView({
 	onPracticeSelectionChange?: (nodes: { id: string; name: string; statement: string }[]) => void;
 	onChainSelectClose?: () => void;
 }) {
+	const router = useRouter();
+	const { appearance } = useAppearance();
+	const [startingPractice, setStartingPractice] = useState(false);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const cardRef = useRef<HTMLDivElement | null>(null);
@@ -1435,7 +1454,7 @@ export function GraphView({
 			// Match the app typography (Geist via the body's stack).
 			fontFamily: getComputedStyle(document.body).fontFamily,
 		});
-	}, [snapshot, isEmpty]);
+	}, [snapshot, isEmpty, appearance.mode, appearance.background]);
 
 	// Feed #2 — settings: just marks the frame dirty. No rebuild, no
 	// re-layout, no camera touch (the whole point of the new renderer).
@@ -1650,6 +1669,40 @@ export function GraphView({
 				>
 					<div className="text-sm font-medium leading-snug">{selected.node.name}</div>
 					<div className="mt-1 text-xs leading-relaxed text-muted-foreground">{selected.node.statement}</div>
+					<div className="mt-3 flex items-center gap-2">
+						<button
+							type="button"
+							data-testid="practice-selected-node"
+							disabled={startingPractice}
+							onClick={async () => {
+								if (startingPractice) return;
+								setStartingPractice(true);
+								try {
+									const href = await startDraftSession(
+										`Practice: ${selected.node.name}`,
+										fetch,
+										"practice",
+										[
+											{
+												id: selected.node.id,
+												name: selected.node.name,
+												statement: selected.node.statement,
+											},
+										],
+									);
+									if (href) router.push(href);
+								} catch (err) {
+									console.error("[graph] failed to start practice session:", err);
+								} finally {
+									setStartingPractice(false);
+								}
+							}}
+							className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 font-ui text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+						>
+							<DumbbellIcon className="size-3.5 text-primary" />
+							{startingPractice ? "Starting…" : "Practice this"}
+						</button>
+					</div>
 					{selected.sourceIds.length > 0 ? (
 						<div className="mt-3 flex flex-col gap-1">
 							<div className="text-xs text-muted-foreground">Sessions</div>

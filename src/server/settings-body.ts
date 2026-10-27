@@ -241,6 +241,18 @@ export function parseAppearanceSettingsBody(body: unknown): SettingsBodyResult<A
 		}
 		settings.proseFontSize = raw.proseFontSize;
 	}
+	if (raw.proseMaxWidth !== undefined) {
+		if (
+			raw.proseMaxWidth !== null &&
+			(typeof raw.proseMaxWidth !== "number" ||
+				!Number.isInteger(raw.proseMaxWidth) ||
+				raw.proseMaxWidth < 40 ||
+				raw.proseMaxWidth > 140)
+		) {
+			return { ok: false, error: "proseMaxWidth must be an integer between 40 and 140 or null" };
+		}
+		settings.proseMaxWidth = raw.proseMaxWidth as number | null;
+	}
 	if (raw.sessionNameSerif !== undefined) {
 		if (typeof raw.sessionNameSerif !== "boolean") {
 			return { ok: false, error: "sessionNameSerif must be a boolean" };

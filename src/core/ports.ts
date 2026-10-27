@@ -23,6 +23,7 @@ import type {
 	Position,
 	CoverageEntry,
 	SessionCheckpoint,
+	SessionHighlight,
 	TurnUsage,
 	NotesSource,
 } from "./contracts.ts";
@@ -54,6 +55,8 @@ export interface ChatStore {
 	/** Persist the per-chat model/thinking settings (the model control).
 	 *  Replace-whole: the picker sends the complete settings object. */
 	saveSettings(id: string, settings: ChatSettings): void;
+	/** Persist the session's user highlights and notes (replace-whole). */
+	saveHighlights(id: string, highlights: SessionHighlight[]): void;
 	/** Rename a session (the header's click-to-edit title, 2026-09-17).
 	 * Like saveSettings: a rename is NOT conversation activity — updatedAt
 	 * stays put, so sidebar order never churns on a rename. */

@@ -30,6 +30,7 @@ export function resolveAppearance(delta: AppearanceSettings | undefined) {
 		background: delta?.background ?? f.background,
 		fontFamily: delta?.fontFamily ?? f.fontFamily,
 		proseFontSize: delta?.proseFontSize ?? f.proseFontSize,
+		proseMaxWidth: delta?.proseMaxWidth !== undefined ? delta.proseMaxWidth : f.proseMaxWidth,
 		sessionNameSerif: delta?.sessionNameSerif ?? f.sessionNameSerif,
 		mdRendering: {
 			headingWeight: delta?.mdRendering?.headingWeight ?? f.mdRendering.headingWeight,
@@ -39,25 +40,24 @@ export function resolveAppearance(delta: AppearanceSettings | undefined) {
 	};
 }
 
-/** One channel clamped on the dark curve: additive offsets matching today's
- *  hand-picked palette (#141414 → card #1c1c1c (+8) → accent #2a2a2a (+22)
- *  → border #434343 (+47)) — the "per-mode derivation in code" the schema
- *  promises, as the thinnest curve that keeps the palette's relationships. */
-function raise(hex: string, add: number): string {
+/** One channel clamped on the mode curve:
+ *  - dark curve: additive offsets (#141414 → card #1c1c1c (+8) → accent #2a2a2a (+22) → border #434343 (+47))
+ *  - light curve (Wing OS Little Wing): subtractive offsets (#edeaea → card (-17) → accent (-29) → border (-69))
+ */
+function shiftHex(hex: string, delta: number): string {
 	const n = hex.length === 4
 		? hex.slice(1).split("").map((c) => parseInt(c + c, 16))
 		: [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-	return `#${n.map((c) => Math.min(255, c + add).toString(16).padStart(2, "0")).join("")}`;
+	return `#${n.map((c) => Math.max(0, Math.min(255, c + delta)).toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** The derived palette a chosen background implies (dark curve): background
- *  itself, the raised surfaces (card/popover/secondary/muted, +8), the
- *  accent (+22), the edges (border/input, +47), and primary-foreground
- *  (the inverted text on primary = the background's own color, as today). */
-export function derivedPalette(background: string): Record<string, string> {
-	const card = raise(background, 8);
-	const accent = raise(background, 22);
-	const border = raise(background, 47);
+/** The derived palette a chosen background implies (per-mode curve): background
+ *  itself, the raised surfaces (card/popover/secondary/muted), the
+ *  accent, the edges (border/input), and primary-foreground. */
+export function derivedPalette(background: string, mode: "dark" | "light" = "dark"): Record<string, string> {
+	const card = mode === "light" ? shiftHex(background, -17) : shiftHex(background, 8);
+	const accent = mode === "light" ? shiftHex(background, -29) : shiftHex(background, 22);
+	const border = mode === "light" ? shiftHex(background, -69) : shiftHex(background, 47);
 	return {
 		"--background": background,
 		"--card": card,
@@ -76,13 +76,16 @@ export function derivedPalette(background: string): Record<string, string> {
  *  exported for tests. */
 export function appearanceVars(a: ReturnType<typeof resolveAppearance>): Record<string, string> {
 	const vars: Record<string, string> = {};
-	if (a.background !== null) Object.assign(vars, derivedPalette(a.background));
+	if (a.background !== null) Object.assign(vars, derivedPalette(a.background, a.mode));
 	if (a.fontFamily !== null) {
 		vars["--font-prose"] = `"${a.fontFamily}", var(--font-sans3), ui-sans-serif, system-ui, sans-serif`;
 	}
 	// The ONE documented reading-size variable (typography round 4): prose,
 	// inputs, and session titles all read it, so one setProperty moves them.
 	vars["--lh-prose-size"] = `${a.proseFontSize}px`;
+	if (a.proseMaxWidth !== null && a.proseMaxWidth !== undefined) {
+		vars["--lh-prose-max-width"] = `${a.proseMaxWidth}ch`;
+	}
 	// Session names: CMU Serif by default; the toggle swaps the title font
 	// to the prose family — covers chat.tsx + new-session.tsx titles with
 	// zero component edits (they use the .font-title utility).
@@ -128,8 +131,13 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 	const appliedRef = useRef<string>("");
 
 	// The vars apply on every change — stringified as the change signal.
-	const vars = useMemo(() => appearanceVars(resolveAppearance(delta)), [delta]);
+	const resolved = useMemo(() => resolveAppearance(delta), [delta]);
+	const vars = useMemo(() => appearanceVars(resolved), [resolved]);
 	const key = useMemo(() => JSON.stringify(vars), [vars]);
+	// Sync <html class="dark"> with resolved.mode (Light Mode = Wing OS Little Wing).
+	useEffect(() => {
+		document.documentElement.classList.toggle("dark", resolved.mode === "dark");
+	}, [resolved.mode]);
 	// REMOVAL is half the job (owner repro, fix wave): a later write that
 	// OMITS a var (empty field = factory, serif toggle back on) must clear
 	// the previously-set inline value or the stale one wins forever —

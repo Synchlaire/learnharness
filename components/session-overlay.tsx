@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { fitGraphView, fitZoomFor, zoomedGraphView, type Viewport } from "@/components/pan-zoom";
 import { renderMermaid } from "@/components/mermaid-render";
 import { MermaidError } from "@/components/mermaid-error";
+import { useAppearance } from "@/components/settings/appearance";
 import { Hint } from "@/components/ui/hint";
 import { SvgImage } from "@/components/artifacts/svg-image";
 
@@ -85,6 +86,7 @@ export function MermaidOverlay({
 	onClose: () => void;
 }) {
 	// ── chart render (own instance, own ids); figure mode uses the raw svg ──
+	const { appearance } = useAppearance();
 	const [svg, setSvg] = useState<string | null>(rawSvg ?? null);
 	const [error, setError] = useState<string | null>(null);
 	const [attempt, setAttempt] = useState(0);
@@ -98,7 +100,7 @@ export function MermaidOverlay({
 		let cancelled = false;
 		setSvg(null);
 		setError(null);
-		renderMermaid(chart)
+		renderMermaid(chart, appearance.mode)
 			.then((s) => {
 				if (!cancelled) setSvg(s);
 			})
@@ -108,7 +110,7 @@ export function MermaidOverlay({
 		return () => {
 			cancelled = true;
 		};
-	}, [rawSvg, chart, attempt]);
+	}, [rawSvg, chart, attempt, appearance.mode]);
 
 	// Esc closes — claimed at the document level (THE ONE-ESC LAW, owner
 	// keyboard round 2026-10-06): one Esc, one action; the window chain

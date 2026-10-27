@@ -19,7 +19,7 @@
  * lifts the pick set; the chip opens the overlay in select mode).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ListTreeIcon, UploadIcon } from "lucide-react";
+import { DownloadIcon, ListTreeIcon, UploadIcon } from "lucide-react";
 import { ChainTableOverlay } from "@/components/chain-table.tsx";
 import { GraphCostControl } from "@/components/graph-view.tsx";
 import { NotesImportErrors, useNotesImport } from "@/components/notes-import.tsx";
@@ -179,7 +179,7 @@ export function MinimalHome({
 							</button>
 						</Hint>
 					</div>
-					<div className="shrink-0 rounded-xl border bg-card/85 px-1 py-[3px] shadow-lg backdrop-blur">
+					<div className="flex shrink-0 items-center gap-0.5 rounded-xl border bg-card/85 px-1 py-[3px] shadow-lg backdrop-blur">
 						<Hint label="Import notes into the graph" side="bottom">
 							<button
 								type="button"
@@ -192,6 +192,19 @@ export function MinimalHome({
 								{importing ? "Importing…" : "Import notes…"}
 							</button>
 						</Hint>
+						{(snapshot?.propositions.length ?? 0) > 0 && (
+							<Hint label="Export knowledge graph as Markdown / Obsidian" side="bottom">
+								<a
+									href="/api/graph/export"
+									download="knowledge-graph.md"
+									data-testid="export-graph-md"
+									className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								>
+									<DownloadIcon className="size-3" />
+									Export
+								</a>
+							</Hint>
+						)}
 					</div>
 				</div>
 				<NotesImportErrors errors={notesImport.errors} />
